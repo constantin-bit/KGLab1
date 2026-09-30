@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Lab1</title>
+  <style>
+    .color-picker-container {
+      padding: 15px;
+      width: 256px;
+      border: 1px solid rgb(0, 0, 0);
+      padding: 10px;
+      gap: 5px;
+    }
+    canvas {
+      cursor: crosshair;
+      border: 1px solid rgb(0, 0, 0);
+    }
+    .hue-slider {
+      -webkit-appearance: none;
+      width: 100%;
+      background: linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000);
+      border: 1px solid rgb(0, 0, 0);
+    }
+    .hue-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      background: rgb(255, 253, 253);
+      border: 1px solid rgb(5, 4, 4);
+      cursor: pointer;
+    }
+    .color-preview {
+      height: 40px;
+      width: 40px;
+      border: 1px solid rgb(0, 0, 0);
+    }
+    input {
+      margin-left: 0px;
+      margin-top: 1px;
+      
+    }
+  </style>
+</head>
+<body>
+
+<div class="color-picker-container">
+  <canvas id="colorCanvas" width="256" height="256"></canvas>
+  <input type="range" id="hueSlider" class="hue-slider" min="0" max="360" value="0">
+  <div id="colorPreview" class="color-preview"></div>
+  R:<input id="inRGBRed" type="text" size="1"/>
+  G:<input id="inRGBGreen" type="text" size="1"/>
+  B:<input id="inRGBBlue" type="text" size="1"/><br>
+  C:<input id="inCMYKCyan" type="text" size="1"/>%
+  M:<input id="inCMYKMagenta" type="text" size="1"/>%
+  Y:<input id="inCMYKYellow" type="text" size="1"/>%<br>
+  K:<input id="inCMYKKey" type="text" size="1"/>%<br>
+  H:<input id="inHSVHue" type="text" size="1"/>&#176;
+  S:<input id="inHSVSaturation" type="text" size="1"/>%
+  V:<input id="inHSVValue" type="text" size="1"/>%
+</div>
+
+<script>
+  const canvas = document.getElementById('colorCanvas');
+  const ctx = canvas.getContext('2d');
+  const hueSlider = document.getElementById('hueSlider');
+  const colorPreview = document.getElementById('colorPreview');
+  const inRGBRed = document.getElementById('inRGBRed');
+  const inRGBGreen = document.getElementById('inRGBGreen');
+  const inRGBBlue = document.getElementById('inRGBBlue');
+  const inCMYKCyan = document.getElementById('inCMYKCyan');
+  const inCMYKMagenta = document.getElementById('inCMYKMagenta');
+  const inCMYKYellow = document.getElementById('inCMYKYellow');
+  const inCMYKKey = document.getElementById('inCMYKKey');
+  const inHSVHue = document.getElementById('inHSVHue');
+  const inHSVSaturation = document.getElementById('inHSVSaturation');
+  const inHSVValue = document.getElementById('inHSVValue');
+
+  currentHue = 0;
+  lastX = canvas.width - 1;
+  lastY = 0;
+  isDrawing = false;
+
+  function drawPalette(hue) {
+    ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const whiteGrad = ctx.createLinearGradient(0, 0, canvas.width, 0);
+    whiteGrad.addColorStop(0, 'rgba(255,255,255,1)');
+    whiteGrad.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = whiteGrad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const blackGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    blackGrad.addColorStop(0, 'rgba(0,0,0,0)');
+    blackGrad.addColorStop(1, 'rgba(0,0,0,1)');
+    ctx.fillStyle = blackGrad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+  function updateColor(x, y) {
+    x = Math.max(0, Math.min(x, canvas.width - 1));
+    y = Math.max(0, Math.min(y, canvas.height - 1));
+    lastX = x;
+    lastY = y;
+    const imgData = ctx.getImageData(x, y, 1, 1).data;
+    const rgbColor = `rgb(${imgData[0]}, ${imgData[1]}, ${imgData[2]})`;
+    colorPreview.style.backgroundColor = rgbColor;
+    inRGBRed.value = imgData[0];
+    inRGBGreen.value = imgData[1];
+    inRGBBlue.value = imgData[2];
+    r = imgData[0] / 255;
+    g = imgData[1] / 255;
+    b = imgData[2] / 255;
+    fromRGBtoCMYK(r, g, b);
+    fromRGBtoHSV(r, g, b);
+  }
+
+  hueSlider.addEventListener('input', (e) => {
+    currentHue = e.target.value;
+    drawPalette(currentHue);
+    updateColor(lastX, lastY);
+  });
+  function fromRGBtoCMYK(r, g, b){
+    inCMYKKey.value = 1 - Math.max(r, g, b);
+    if (inCMYKKey.value == 1){
+      inCMYKCyan.value = 0;
+      inCMYKMagenta.value = 0;
+      inCMYKYellow.value = 0;
+    }
+    else{
+      inCMYKCyan.value = Math.floor(100 * (1 - r - inCMYKKey.value) / (1 - inCMYKKey.value));
+      inCMYKMagenta.value = Math.floor(100 * (1 - g - inCMYKKey.value) / (1 - inCMYKKey.value));
+      inCMYKYellow.value = Math.floor(100 * (1 - b - inCMYKKey.value) / (1 - inCMYKKey.value));
+    }
+    inCMYKKey.value = Math.floor(100 * inCMYKKey.value);
+  }
+  function fromRGBtoHSV(r, g, b){
+    firstMax = Math.max(r, g, b);
+    firstMin = Math.min(r, g, b);
+    delta = firstMax - firstMin;
+    inHSVValue.value = Math.floor(100 * firstMax);
+    if (firstMax == 0){
+      inHSVSaturation.value = 0;
+    }
+    else{
+      inHSVSaturation.value = Math.floor(100 * (delta / firstMax));
+    }
+    if (delta == 0){
+      inHSVHue.value = 0;
+    }
+    else{
+      if (firstMax == r){
+        inHSVHue.value = Math.floor(((g - b) / delta + (g < b ? 6 : 0)) * 60);
+      }
+      else{
+        if (firstMax == g){
+          inHSVHue.value = Math.floor(((b - r) / delta + 2) * 60);
+        }
+        else{
+          inHSVHue.value = Math.floor(((r - g) / delta + 4) * 60);
+        }
+      }
+      if (inHSVHue.value < 0){
+        inHSVHue.value += 360;
+      }
+    }
+  }
+  function fromRGBtoHSL(r, g, b){
+    hFromHSL = 0;
+    sFromHSL = 0;
+    lFromHSL = 0;
+    firstMax = Math.max(r, g, b);
+    firstMin = Math.min(r, g, b);
+    delta = firstMax - firstMin;
+    lFromHSL = (firstMax + firstMin) / 2;
+    if (lFromHSL <= 50){
+      sFromHSL = delta / (2 * lFromHSL);
+    }
+    else{
+      sFromHSL = delta / (2 - 2 * lFromHSL);
+    }
+    lFromHSL *= 100;
+    sFromHSL *= 100;
+    if (delta == 0){
+      hFromHSL = 0;
+    }
+    else{
+      if (firstMax == r){
+        hFromHSL = ((g - b) / delta + (g < b ? 6 : 0)) * 60;
+      }
+      else{
+        if (firstMax == g){
+          hFromHSL = ((b - r) / delta + 2) * 60;
+        }
+        else{
+          hFromHSL = ((r - g) / delta + 4) * 60;
+        }
+      }
+      if (hFromHSL < 0){
+        hFromHSL += 360;
+      }
+    }
+    hueSlider.value = hFromHSL;
+    drawPalette(hFromHSL);
+  }
+
+  function fromRGBtoOthers(inR, inG, inB){
+    r = inR / 255;
+    g = inG / 255;
+    b = inB / 255;
+    fromRGBtoHSL(r, g, b);
+    fromRGBtoCMYK(r, g, b);
+    fromRGBtoHSV(r, g, b);
+    const rgbColor = `rgb(${inR}, ${inG}, ${inB})`;
+    colorPreview.style.backgroundColor = rgbColor;
+  }
+  function fromCMYKtoOthers(inC, inM, inY, inK){
+    r = (1 - inC / 100) * (1 - inK / 100);
+    g = (1 - inM / 100) * (1 - inK / 100);
+    b = (1 - inY / 100) * (1 - inK / 100);
+    inRGBRed.value = Math.floor(r * 255);
+    inRGBGreen.value = Math.floor(g * 255);
+    inRGBBlue.value = Math.floor(b * 255);
+    fromRGBtoHSL(r, g, b);
+    fromRGBtoHSV(r, g, b);
+    const rgbColor = `rgb(${inRGBRed.value}, ${inRGBGreen.value}, ${inRGBBlue.value})`;
+    colorPreview.style.backgroundColor = rgbColor;
+  }
+  function fromHSVtoOthers(inH, inS, inV){
+    s = inS / 100;
+    v = inV / 100;
+    r = 0;
+    g = 0;
+    b = 0;
+    if (inS == 0){
+      r = v;
+      g = v;
+      b = v;
+    }
+    else{
+      h = inH / 60;
+      i = Math.floor(h);
+      f = h - i;
+      p = v * (1 - s);
+      q = v * (1 - s * f);
+      t = v * (1 - s * (1 - f));
+      if (i == 0){
+        r = v;
+        g = t;
+        b = p;
+      }
+      if (i == 1){
+        r = q;
+        g = v;
+        b = p;
+      }
+      if (i == 2){
+        r = p;
+        g = v;
+        b = t;
+      }
+      if (i == 3){
+        r = p;
+        g = q;
+        b = v;
+      }
+      if (i == 4){
+        r = t;
+        g = p;
+        b = v;
+      }
+      if (i == 5 || i == 6){
+        r = v;
+        g = p;
+        b = q;
+      }
+    }
+    inRGBRed.value = Math.floor(r * 255);
+    inRGBGreen.value = Math.floor(g * 255);
+    inRGBBlue.value = Math.floor(b * 255);
+    fromRGBtoHSL(r, g, b);
+    fromRGBtoCMYK(r, g, b);
+    const rgbColor = `rgb(${inRGBRed.value}, ${inRGBGreen.value}, ${inRGBBlue.value})`;
+    colorPreview.style.backgroundColor = rgbColor;
+  }
+  //RGB Reaction
+  inRGBRed.addEventListener('input', (e) => {
+    fromRGBtoOthers(inRGBRed.value, inRGBGreen.value, inRGBBlue.value);
+  });
+  inRGBGreen.addEventListener('input', (e) => {
+    fromRGBtoOthers(inRGBRed.value, inRGBGreen.value, inRGBBlue.value);
+  });
+  inRGBBlue.addEventListener('input', (e) => {
+    fromRGBtoOthers(inRGBRed.value, inRGBGreen.value, inRGBBlue.value);
+  });
+  //CMYK Reaction
+  inCMYKCyan.addEventListener('input', (e) => {
+    fromCMYKtoOthers(inCMYKCyan.value, inCMYKMagenta.value, inCMYKYellow.value, inCMYKKey.value);
+  });
+  inCMYKMagenta.addEventListener('input', (e) => {
+    fromCMYKtoOthers(inCMYKCyan.value, inCMYKMagenta.value, inCMYKYellow.value, inCMYKKey.value);
+  });
+  inCMYKYellow.addEventListener('input', (e) => {
+    fromCMYKtoOthers(inCMYKCyan.value, inCMYKMagenta.value, inCMYKYellow.value, inCMYKKey.value);
+  });
+  inCMYKKey.addEventListener('input', (e) => {
+    fromCMYKtoOthers(inCMYKCyan.value, inCMYKMagenta.value, inCMYKYellow.value, inCMYKKey.value);
+  });
+  //HSV Reaction
+  inHSVHue.addEventListener('input', (e) => {
+    fromHSVtoOthers(inHSVHue.value, inHSVSaturation.value, inHSVValue.value);
+  });
+  inHSVSaturation.addEventListener('input', (e) => {
+    fromHSVtoOthers(inHSVHue.value, inHSVSaturation.value, inHSVValue.value);
+  });
+  inHSVValue.addEventListener('input', (e) => {
+    fromHSVtoOthers(inHSVHue.value, inHSVSaturation.value, inHSVValue.value);
+  });
+
+  function handleCanvasPointer(e) {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    updateColor(x, y);
+  }
+
+  canvas.addEventListener('mousedown', (e) => {
+    isDrawing = true;
+    handleCanvasPointer(e);
+  });
+  window.addEventListener('mousemove', (e) => {
+    if (isDrawing) handleCanvasPointer(e);
+  });
+  window.addEventListener('mouseup', () => {
+    isDrawing = false;
+  });
+  
+  drawPalette(currentHue);
+  updateColor(lastX, lastY);
+</script>
+
+</body>
+</html>

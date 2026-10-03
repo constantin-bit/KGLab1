@@ -34,10 +34,28 @@
       width: 40px;
       border: 1px solid rgb(0, 0, 0);
     }
+    .main-input-block {
+      display: flex;
+      align-items: center;
+    }
+    .inputs-block {
+      height: 280px;
+      width: 256px;
+      border: 1px solid rgb(0, 0, 0);
+      padding: 10px;
+    }
+    .input-block {
+      border: 1px solid rgb(0, 0, 0);
+      padding: 10px;
+      gap: 5px;
+
+    }
     input {
       margin-left: 0px;
       margin-top: 1px;
-      
+    }
+    input[type="range"] {
+      cursor: pointer;
     }
   </style>
 </head>
@@ -47,16 +65,54 @@
   <canvas id="colorCanvas" width="256" height="256"></canvas>
   <input type="range" id="hueSlider" class="hue-slider" min="0" max="360" value="0">
   <div id="colorPreview" class="color-preview"></div>
-  R:<input id="inRGBRed" type="text" size="1"/>
-  G:<input id="inRGBGreen" type="text" size="1"/>
-  B:<input id="inRGBBlue" type="text" size="1"/><br>
-  C:<input id="inCMYKCyan" type="text" size="1"/>%
-  M:<input id="inCMYKMagenta" type="text" size="1"/>%
-  Y:<input id="inCMYKYellow" type="text" size="1"/>%<br>
-  K:<input id="inCMYKKey" type="text" size="1"/>%<br>
-  H:<input id="inHSVHue" type="text" size="1"/>&#176;
-  S:<input id="inHSVSaturation" type="text" size="1"/>%
-  V:<input id="inHSVValue" type="text" size="1"/>%
+</div>
+<div class="main-input-block">
+  <div class="inputs-block">
+    <div class="input-block">
+      R:<input id="inRGBRed" type="text" size="1"/>
+      <input id="slRGBRed" type="range" min="0" max="255" value="0">
+    </div>
+    <div class="input-block">
+      G:<input id="inRGBGreen" type="text" size="1"/>
+      <input id="slRGBGreen" type="range" min="0" max="255" value="0">
+    </div>
+    <div class="input-block">
+      B:<input id="inRGBBlue" type="text" size="1"/><br>
+      <input id="slRGBBlue" type="range" min="0" max="255" value="0">
+    </div>
+  </div>
+  <div class="inputs-block">
+    <div class="input-block">
+      C:<input id="inCMYKCyan" type="text" size="1"/>%
+      <input id="slCMYKCyan" type="range" min="0" max="100" value="0">
+    </div>
+    <div class="input-block">
+      M:<input id="inCMYKMagenta" type="text" size="1"/>%
+      <input id="slCMYKMagenta" type="range" min="0" max="100" value="0">
+    </div>
+    <div class="input-block">
+      Y:<input id="inCMYKYellow" type="text" size="1"/>%<br>
+      <input id="slCMYKYellow" type="range" min="0" max="100" value="0">
+    </div>
+    <div class="input-block">
+      K:<input id="inCMYKKey" type="text" size="1"/>%<br>
+      <input id="slCMYKKey" type="range" min="0" max="100" value="0">
+    </div>
+  </div>
+  <div class="inputs-block">
+    <div class="input-block">
+      H:<input id="inHSVHue" type="text" size="1"/>&#176;
+      <input id="slHSVHue" type="range" min="0" max="360" value="0">
+    </div>
+    <div class="input-block">
+      S:<input id="inHSVSaturation" type="text" size="1"/>%
+      <input id="slHSVSaturation" type="range" min="0" max="100" value="0">
+    </div>
+    <div class="input-block">
+      V:<input id="inHSVValue" type="text" size="1"/>%
+      <input id="slHSVValue" type="range" min="0" max="100" value="0">
+    </div>
+  </div>
 </div>
 
 <script>
@@ -64,21 +120,20 @@
   const ctx = canvas.getContext('2d');
   const hueSlider = document.getElementById('hueSlider');
   const colorPreview = document.getElementById('colorPreview');
-  const inRGBRed = document.getElementById('inRGBRed');
-  const inRGBGreen = document.getElementById('inRGBGreen');
-  const inRGBBlue = document.getElementById('inRGBBlue');
-  const inCMYKCyan = document.getElementById('inCMYKCyan');
-  const inCMYKMagenta = document.getElementById('inCMYKMagenta');
-  const inCMYKYellow = document.getElementById('inCMYKYellow');
-  const inCMYKKey = document.getElementById('inCMYKKey');
-  const inHSVHue = document.getElementById('inHSVHue');
-  const inHSVSaturation = document.getElementById('inHSVSaturation');
-  const inHSVValue = document.getElementById('inHSVValue');
+  
+  const syncUI = (idIn, idSl, val) => {
+    const input = document.getElementById(idIn);
+    const slider = document.getElementById(idSl);
+    if (input && slider) {
+      input.value = val;
+      slider.value = val;
+    }
+  }
 
-  currentHue = 0;
-  lastX = canvas.width - 1;
-  lastY = 0;
-  isDrawing = false;
+  let currentHue = 0;
+  let lastX = canvas.width - 1;
+  let lastY = 0;
+  let isDrawing = false;
 
   function drawPalette(hue) {
     ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
@@ -101,15 +156,24 @@
     y = Math.max(0, Math.min(y, canvas.height - 1));
     lastX = x;
     lastY = y;
+    
     const imgData = ctx.getImageData(x, y, 1, 1).data;
-    const rgbColor = `rgb(${imgData[0]}, ${imgData[1]}, ${imgData[2]})`;
+
+    let rByte = imgData[0];
+    let gByte = imgData[1];
+    let bByte = imgData[2];
+    
+    const rgbColor = `rgb(${rByte}, ${gByte}, ${bByte})`;
     colorPreview.style.backgroundColor = rgbColor;
-    inRGBRed.value = imgData[0];
-    inRGBGreen.value = imgData[1];
-    inRGBBlue.value = imgData[2];
-    r = imgData[0] / 255;
-    g = imgData[1] / 255;
-    b = imgData[2] / 255;
+    
+    syncUI('inRGBRed', 'slRGBRed', rByte);
+    syncUI('inRGBGreen', 'slRGBGreen', gByte);
+    syncUI('inRGBBlue', 'slRGBBlue', bByte);
+
+    const r = rByte / 255;
+    const g = gByte / 255;
+    const b = bByte / 255;
+
     fromRGBtoCMYK(r, g, b);
     fromRGBtoHSV(r, g, b);
   }
@@ -119,86 +183,65 @@
     drawPalette(currentHue);
     updateColor(lastX, lastY);
   });
+
   function fromRGBtoCMYK(r, g, b){
     inCMYKKey.value = 1 - Math.max(r, g, b);
-    if (inCMYKKey.value == 1){
-      inCMYKCyan.value = 0;
-      inCMYKMagenta.value = 0;
-      inCMYKYellow.value = 0;
-    }
-    else{
-      inCMYKCyan.value = Math.floor(100 * (1 - r - inCMYKKey.value) / (1 - inCMYKKey.value));
-      inCMYKMagenta.value = Math.floor(100 * (1 - g - inCMYKKey.value) / (1 - inCMYKKey.value));
-      inCMYKYellow.value = Math.floor(100 * (1 - b - inCMYKKey.value) / (1 - inCMYKKey.value));
-    }
-    inCMYKKey.value = Math.floor(100 * inCMYKKey.value);
+    kVal = Math.floor(100 * inCMYKKey.value);
+
+    cVal = inCMYKKey.value >= 0.98 ? 0 : Math.floor(100 * (1 - r - inCMYKKey.value) / (1 - inCMYKKey.value));
+    mVal = inCMYKKey.value >= 0.98 ? 0 : Math.floor(100 * (1 - g - inCMYKKey.value) / (1 - inCMYKKey.value));
+    yVal = inCMYKKey.value >= 0.98 ? 0 : Math.floor(100 * (1 - b - inCMYKKey.value) / (1 - inCMYKKey.value));
+
+    syncUI('inCMYKCyan', 'slCMYKCyan', cVal);
+    syncUI('inCMYKMagenta', 'slCMYKMagenta', mVal);
+    syncUI('inCMYKYellow', 'slCMYKYellow', yVal);
+    syncUI('inCMYKKey', 'slCMYKKey', kVal);
   }
   function fromRGBtoHSV(r, g, b){
     firstMax = Math.max(r, g, b);
     firstMin = Math.min(r, g, b);
     delta = firstMax - firstMin;
-    inHSVValue.value = Math.floor(100 * firstMax);
-    if (firstMax == 0){
-      inHSVSaturation.value = 0;
-    }
-    else{
-      inHSVSaturation.value = Math.floor(100 * (delta / firstMax));
-    }
-    if (delta == 0){
-      inHSVHue.value = 0;
-    }
-    else{
+
+    vVal = Math.floor(100 * firstMax);
+    sVal = firstMax === 0 ? 0 : Math.floor(100 * (delta / firstMax));
+
+    syncUI('inHSVValue', 'slHSVValue', vVal);
+    syncUI('inHSVSaturation', 'slHSVSaturation', sVal);
+    
+    hVal = 0;
+    if (delta > 0.005){
       if (firstMax == r){
-        inHSVHue.value = Math.floor(((g - b) / delta + (g < b ? 6 : 0)) * 60);
+        hVal = Math.floor(((g - b) / delta + (g < b ? 6 : 0)) * 60);
       }
       else{
         if (firstMax == g){
-          inHSVHue.value = Math.floor(((b - r) / delta + 2) * 60);
+          hVal = Math.floor(((b - r) / delta + 2) * 60);
         }
         else{
-          inHSVHue.value = Math.floor(((r - g) / delta + 4) * 60);
+          hVal = Math.floor(((r - g) / delta + 4) * 60);
         }
       }
-      if (inHSVHue.value < 0){
-        inHSVHue.value += 360;
+      if (hVal < 0){
+        hVal += 360;
+      }
+      if (hVal >= 360){
+        hVal -= 360;
       }
     }
+    syncUI('inHSVHue', 'slHSVHue', hVal);
   }
   function fromRGBtoHSL(r, g, b){
-    hFromHSL = 0;
-    sFromHSL = 0;
-    lFromHSL = 0;
-    firstMax = Math.max(r, g, b);
-    firstMin = Math.min(r, g, b);
-    delta = firstMax - firstMin;
-    lFromHSL = (firstMax + firstMin) / 2;
-    if (lFromHSL <= 50){
-      sFromHSL = delta / (2 * lFromHSL);
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    const delta = max - min;
+    const l = (max + min) / 2;
+    const s = delta === 0 ? 0 : delta / (1 - Math.abs(2 * l - 1));
+    let h = 0
+    if (delta > 0) {
+      if (max === r) h = ((g - b) / delta + (g < b ? 6 : 0)) * 60;
+      else if (max === g) h = ((b - r) / delta + 2) * 60;
+      else h = ((r - g) / delta + 4) * 60;
     }
-    else{
-      sFromHSL = delta / (2 - 2 * lFromHSL);
-    }
-    lFromHSL *= 100;
-    sFromHSL *= 100;
-    if (delta == 0){
-      hFromHSL = 0;
-    }
-    else{
-      if (firstMax == r){
-        hFromHSL = ((g - b) / delta + (g < b ? 6 : 0)) * 60;
-      }
-      else{
-        if (firstMax == g){
-          hFromHSL = ((b - r) / delta + 2) * 60;
-        }
-        else{
-          hFromHSL = ((r - g) / delta + 4) * 60;
-        }
-      }
-      if (hFromHSL < 0){
-        hFromHSL += 360;
-      }
-    }
+    const hFromHSL = Math.round(h);
     hueSlider.value = hFromHSL;
     drawPalette(hFromHSL);
   }
@@ -217,103 +260,75 @@
     r = (1 - inC / 100) * (1 - inK / 100);
     g = (1 - inM / 100) * (1 - inK / 100);
     b = (1 - inY / 100) * (1 - inK / 100);
-    inRGBRed.value = Math.floor(r * 255);
-    inRGBGreen.value = Math.floor(g * 255);
-    inRGBBlue.value = Math.floor(b * 255);
+    rByte = Math.floor(r * 255);
+    gByte = Math.floor(g * 255);
+    bByte = Math.floor(b * 255);
+    syncUI('inRGBRed', 'slRGBRed', rByte);
+    syncUI('inRGBGreen', 'slRGBGreen', gByte);
+    syncUI('inRGBBlue', 'slRGBBlue', bByte);
     fromRGBtoHSL(r, g, b);
     fromRGBtoHSV(r, g, b);
-    const rgbColor = `rgb(${inRGBRed.value}, ${inRGBGreen.value}, ${inRGBBlue.value})`;
+    const rgbColor = `rgb(${rByte}, ${gByte}, ${bByte})`;
     colorPreview.style.backgroundColor = rgbColor;
   }
   function fromHSVtoOthers(inH, inS, inV){
-    s = inS / 100;
-    v = inV / 100;
-    r = 0;
-    g = 0;
-    b = 0;
-    if (inS == 0){
-      r = v;
-      g = v;
-      b = v;
-    }
-    else{
-      h = inH / 60;
-      i = Math.floor(h);
-      f = h - i;
-      p = v * (1 - s);
-      q = v * (1 - s * f);
-      t = v * (1 - s * (1 - f));
-      if (i == 0){
-        r = v;
-        g = t;
-        b = p;
-      }
-      if (i == 1){
-        r = q;
-        g = v;
-        b = p;
-      }
-      if (i == 2){
-        r = p;
-        g = v;
-        b = t;
-      }
-      if (i == 3){
-        r = p;
-        g = q;
-        b = v;
-      }
-      if (i == 4){
-        r = t;
-        g = p;
-        b = v;
-      }
-      if (i == 5 || i == 6){
-        r = v;
-        g = p;
-        b = q;
-      }
-    }
-    inRGBRed.value = Math.floor(r * 255);
-    inRGBGreen.value = Math.floor(g * 255);
-    inRGBBlue.value = Math.floor(b * 255);
+    const h = inH;
+    const s = inS / 100;
+    const v = inV / 100;
+    const k = (n) => (n + h / 60) % 6;
+    const f = (n) => v - v * s * Math.max(0, Math.min(k(n), 4 - k(n), 1));
+    rByte = Math.floor(f(5) * 255);
+    gByte = Math.floor(f(3) * 255);
+    bByte = Math.floor(f(1) * 255);
+    const r = rByte / 255;
+    const g = gByte / 255;
+    const b = bByte / 255;
+    syncUI('inRGBRed', 'slRGBRed', rByte);
+    syncUI('inRGBGreen', 'slRGBGreen', gByte);
+    syncUI('inRGBBlue', 'slRGBBlue', bByte);
     fromRGBtoHSL(r, g, b);
     fromRGBtoCMYK(r, g, b);
-    const rgbColor = `rgb(${inRGBRed.value}, ${inRGBGreen.value}, ${inRGBBlue.value})`;
+    const rgbColor = `rgb(${rByte}, ${gByte}, ${bByte})`;
     colorPreview.style.backgroundColor = rgbColor;
   }
-  //RGB Reaction
-  inRGBRed.addEventListener('input', (e) => {
-    fromRGBtoOthers(inRGBRed.value, inRGBGreen.value, inRGBBlue.value);
-  });
-  inRGBGreen.addEventListener('input', (e) => {
-    fromRGBtoOthers(inRGBRed.value, inRGBGreen.value, inRGBBlue.value);
-  });
-  inRGBBlue.addEventListener('input', (e) => {
-    fromRGBtoOthers(inRGBRed.value, inRGBGreen.value, inRGBBlue.value);
-  });
-  //CMYK Reaction
-  inCMYKCyan.addEventListener('input', (e) => {
-    fromCMYKtoOthers(inCMYKCyan.value, inCMYKMagenta.value, inCMYKYellow.value, inCMYKKey.value);
-  });
-  inCMYKMagenta.addEventListener('input', (e) => {
-    fromCMYKtoOthers(inCMYKCyan.value, inCMYKMagenta.value, inCMYKYellow.value, inCMYKKey.value);
-  });
-  inCMYKYellow.addEventListener('input', (e) => {
-    fromCMYKtoOthers(inCMYKCyan.value, inCMYKMagenta.value, inCMYKYellow.value, inCMYKKey.value);
-  });
-  inCMYKKey.addEventListener('input', (e) => {
-    fromCMYKtoOthers(inCMYKCyan.value, inCMYKMagenta.value, inCMYKYellow.value, inCMYKKey.value);
-  });
-  //HSV Reaction
-  inHSVHue.addEventListener('input', (e) => {
-    fromHSVtoOthers(inHSVHue.value, inHSVSaturation.value, inHSVValue.value);
-  });
-  inHSVSaturation.addEventListener('input', (e) => {
-    fromHSVtoOthers(inHSVHue.value, inHSVSaturation.value, inHSVValue.value);
-  });
-  inHSVValue.addEventListener('input', (e) => {
-    fromHSVtoOthers(inHSVHue.value, inHSVSaturation.value, inHSVValue.value);
+  
+  const inputsConfig = [
+    ['inRGBRed', 'slRGBRed', () => fromRGBtoOthers(getVal('inRGBRed'), getVal('inRGBGreen'), getVal('inRGBBlue'))],
+    ['inRGBGreen', 'slRGBGreen', () => fromRGBtoOthers(getVal('inRGBRed'), getVal('inRGBGreen'), getVal('inRGBBlue'))],
+    ['inRGBBlue', 'slRGBBlue', () => fromRGBtoOthers(getVal('inRGBRed'), getVal('inRGBGreen'), getVal('inRGBBlue'))],
+    
+    ['inCMYKCyan', 'slCMYKCyan', () => fromCMYKtoOthers(getVal('inCMYKCyan'), getVal('inCMYKMagenta'), getVal('inCMYKYellow'), getVal('inCMYKKey'))],
+    ['inCMYKMagenta', 'slCMYKMagenta', () => fromCMYKtoOthers(getVal('inCMYKCyan'), getVal('inCMYKMagenta'), getVal('inCMYKYellow'), getVal('inCMYKKey'))],
+    ['inCMYKYellow', 'slCMYKYellow', () => fromCMYKtoOthers(getVal('inCMYKCyan'), getVal('inCMYKMagenta'), getVal('inCMYKYellow'), getVal('inCMYKKey'))],
+    ['inCMYKKey', 'slCMYKKey', () => fromCMYKtoOthers(getVal('inCMYKCyan'), getVal('inCMYKMagenta'), getVal('inCMYKYellow'), getVal('inCMYKKey'))],
+    
+    ['inHSVHue', 'slHSVHue', () => fromHSVtoOthers(getVal('inHSVHue'), getVal('inHSVSaturation'), getVal('inHSVValue'))],
+    ['inHSVSaturation', 'slHSVSaturation', () => fromHSVtoOthers(getVal('inHSVHue'), getVal('inHSVSaturation'), getVal('inHSVValue'))],
+    ['inHSVValue', 'slHSVValue', () => fromHSVtoOthers(getVal('inHSVHue'), getVal('inHSVSaturation'), getVal('inHSVValue'))]
+  ];
+
+  function getVal(id) { return document.getElementById(id)?.value || 0; }
+
+  inputsConfig.forEach(([inputId, sliderId, updateFunction]) => {
+    const input = document.getElementById(inputId);
+    const slider = document.getElementById(sliderId);
+    input.addEventListener('input', () =>{
+      let cleanVal = input.value.replace(/\D/g, '');
+      if (cleanVal === '') cleanVal = '0';
+      let num = parseInt(cleanVal, 10);
+      const min = parseInt(slider.min, 10) || 0;
+      const max = parseInt(slider.max, 10) || 100;
+      if (num < min) num = min;
+      if (num > max) num = max;
+      input.value = num;
+      slider.value = num;
+      updateFunction();
+    });
+
+    slider.addEventListener('input', () =>{
+      input.value = slider.value;
+      updateFunction();
+    });
   });
 
   function handleCanvasPointer(e) {
@@ -323,17 +338,37 @@
     updateColor(x, y);
   }
 
+  let ticking = false;
+  const MIN_DELTA = 3;
+
   canvas.addEventListener('mousedown', (e) => {
     isDrawing = true;
+    lastX = e.clientX;
+    lastY = e.clientY;
     handleCanvasPointer(e);
   });
-  window.addEventListener('mousemove', (e) => {
-    if (isDrawing) handleCanvasPointer(e);
+
+  canvas.addEventListener('mousemove', (e) => {
+    if (!isDrawing) return;
+    const deltaX = e.clientX - lastX;
+    const deltaY = e.clientY - lastY;
+    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+    if (distance > MIN_DELTA && !ticking) {
+      window.requestAnimationFrame(() => {
+        handleCanvasPointer(e);
+        lastX = e.clientX;
+        lastY = e.clientY;
+        ticking = false;
+      });
+      ticking = true;
+    }
   });
-  window.addEventListener('mouseup', () => {
+
+  canvas.addEventListener('mouseup', () => {
     isDrawing = false;
+    ticking = false;
   });
-  
+
   drawPalette(currentHue);
   updateColor(lastX, lastY);
 </script>
